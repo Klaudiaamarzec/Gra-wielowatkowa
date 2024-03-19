@@ -1,5 +1,4 @@
 import pygame
-import threading
 import time
 import random
 
@@ -11,26 +10,14 @@ class Player:
         self.keys = keys
 
     def move(self, pressed_keys):
-        if self.keys['up'] in pressed_keys:
+        if pressed_keys[self.keys['up']]:
             self.rect.move_ip(0, -5)
-        elif self.keys['down'] in pressed_keys:
+        elif pressed_keys[self.keys['down']]:
             self.rect.move_ip(0, 5)
-        elif self.keys['left'] in pressed_keys:
+        elif pressed_keys[self.keys['left']]:
             self.rect.move_ip(-5, 0)
-        elif self.keys['right'] in pressed_keys:
+        elif pressed_keys[self.keys['right']]:
             self.rect.move_ip(5, 0)
-
-def player_movement(player):
-    while True:
-        keys = pygame.key.get_pressed()
-        player.move(keys)
-        time.sleep(0.02)
-
-def event_handler():
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
 
 def main():
     pygame.init()
@@ -49,24 +36,25 @@ def main():
     player1 = Player("Player 1", red, 50, 50, {'up': pygame.K_UP, 'down': pygame.K_DOWN, 'left': pygame.K_LEFT, 'right': pygame.K_RIGHT})
     player2 = Player("Player 2", blue, 700, 500, {'up': pygame.K_w, 'down': pygame.K_s, 'left': pygame.K_a, 'right': pygame.K_d})
 
-    # Two threads for players movement
-    movement_thread1 = threading.Thread(target=player_movement, args=(player1,))
-    movement_thread2 = threading.Thread(target=player_movement, args=(player2,))
-    movement_thread1.start()
-    movement_thread2.start()
-
-    # Third thread for event handler
-    event_thread = threading.Thread(target=event_handler)
-    event_thread.start()
-
     running = True
     clock = pygame.time.Clock()
     while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        keys1 = pygame.key.get_pressed()
+        keys2 = pygame.key.get_pressed()
+        player1.move(keys1)
+        player2.move(keys2)
+
         screen.fill(white)
         pygame.draw.rect(screen, player1.color, player1.rect)
         pygame.draw.rect(screen, player2.color, player2.rect)
         pygame.display.flip()
         clock.tick(60)
+
+    pygame.quit()
 
 if __name__ == "__main__":
     main()
