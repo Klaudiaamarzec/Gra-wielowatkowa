@@ -4,21 +4,27 @@ import time
 import random
 
 class Player:
-    def __init__(self, name, color, x, y, keys):
+    def __init__(self, name, image_path, x, y, keys):
         self.name = name
-        self.color = color
-        self.rect = pygame.Rect(x, y, 50, 50)
+        self.image = pygame.image.load(image_path)
+        self.image = pygame.transform.scale(self.image, (80, 160))  # Przykładowa skala dla samochodu
+        self.x = x
+        self.y = y
         self.keys = keys
 
     def move(self, pressed_keys):
         if pressed_keys[self.keys['up']]:
-            self.rect.move_ip(0, -5)
+            #self.rect.move_ip(0, -5)
+            self.y -= 5
         elif pressed_keys[self.keys['down']]:
-            self.rect.move_ip(0, 5)
+            #self.rect.move_ip(0, 5)
+            self.y += 5
         elif pressed_keys[self.keys['left']]:
-            self.rect.move_ip(-5, 0)
+            #self.rect.move_ip(-5, 0)
+            self.x -= 5
         elif pressed_keys[self.keys['right']]:
-            self.rect.move_ip(5, 0)
+            #self.rect.move_ip(5, 0)
+            self.x += 5
 
 class CashThread(threading.Thread):
     def __init__(self, player1, player2, screen):
@@ -45,6 +51,20 @@ class CashThread(threading.Thread):
     def stop(self):
         self.running = False
 
+def draw_background(screen, width, height):
+    # Rysowanie tła
+    screen.fill((128, 128, 128))  # Szare tło
+
+    # Rysowanie pasów na drodze
+    lane_width = 10
+    num_lanes = 10
+    lane_color = (255, 255, 255)  # Biały kolor
+    for i in range(num_lanes):
+        lane_x = width // 2 - lane_width // 2
+        lane_x += (i - num_lanes // 2) * (width // num_lanes)
+        pygame.draw.rect(screen, lane_color, pygame.Rect(lane_x, 0, lane_width, height))
+
+
 def main():
     pygame.init()
 
@@ -53,14 +73,9 @@ def main():
     screen = pygame.display.set_mode((width, height))
     pygame.display.set_caption("Fast and Furious")
 
-    # Colors
-    white = (255, 255, 255)
-    red = (255, 0, 0)
-    blue = (0, 0, 255)
-
     # Players
-    player1 = Player("Player 1", red, 150, 500, {'up': pygame.K_UP, 'down': pygame.K_DOWN, 'left': pygame.K_LEFT, 'right': pygame.K_RIGHT})
-    player2 = Player("Player 2", blue, 600, 500, {'up': pygame.K_w, 'down': pygame.K_s, 'left': pygame.K_a, 'right': pygame.K_d})
+    player1 = Player("Player 1", 'Images/pomaranczowe.png', 150, 400, {'up': pygame.K_UP, 'down': pygame.K_DOWN, 'left': pygame.K_LEFT, 'right': pygame.K_RIGHT})
+    player2 = Player("Player 2", 'Images/zielony.png', 600, 400, {'up': pygame.K_w, 'down': pygame.K_s, 'left': pygame.K_a, 'right': pygame.K_d})
 
     # Thread for cash
     cash_thread = CashThread(player1, player2, screen)
@@ -78,13 +93,33 @@ def main():
         player1.move(keys1)
         player2.move(keys2)
 
-        screen.fill(white)
-        pygame.draw.rect(screen, player1.color, player1.rect)
-        pygame.draw.rect(screen, player2.color, player2.rect)
+        # Sprawdzenie granic ekranu dla gracza 1
+        if player1.x < 0:
+            player1.x = 0
+        elif player1.x > width - player1.image.get_width():
+            player1.x = width - player1.image.get_width()
+        if player1.y < 0:
+            player1.y = 0
+        elif player1.y > height - player1.image.get_height():
+            player1.y = height - player1.image.get_height()
+
+        # Sprawdzenie granic ekranu dla gracza 2
+        if player2.x < 0:
+            player2.x = 0
+        elif player2.x > width - player2.image.get_width():
+            player2.x = width - player2.image.get_width()
+        if player2.y < 0:
+            player2.y = 0
+        elif player2.y > height - player2.image.get_height():
+            player2.y = height - player2.image.get_height()
+
+        draw_background(screen, width, height)
+        screen.blit(player1.image, (player1.x, player1.y))
+        screen.blit(player2.image, (player2.x, player2.y))
 
         # drawing cash on the screen
         for cash in cash_thread.cash:
-            pygame.draw.rect(screen, (255, 255, 0), pygame.Rect(cash[0], cash[1], 10, 10))
+            pygame.draw.rect(screen, (255, 255, 0), pygame.Rect(cash[0], cash[1], 20, 20))
 
         pygame.display.flip()
         clock.tick(60)
