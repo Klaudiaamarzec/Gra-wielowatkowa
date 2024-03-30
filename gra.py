@@ -25,6 +25,22 @@ class Player:
         elif pressed_keys[self.keys['right']]:
             #self.rect.move_ip(5, 0)
             self.x += 5
+class Car:
+    def __init__(self, image_path, x, y, direction):
+        self.image = pygame.image.load(image_path)
+        self.image = pygame.transform.scale(self.image, (80, 160))
+        self.x = x
+        self.y = y
+        self.direction = direction
+        self.speed = random.randint(1, 5)
+
+    def move(self):
+        if self.direction == "up":
+            self.y -= self.speed
+        else:
+            self.y += self.speed
+
+
 
 class CashThread(threading.Thread):
     def __init__(self, player1, player2, screen):
@@ -50,6 +66,42 @@ class CashThread(threading.Thread):
 
     def stop(self):
         self.running = False
+def random_car_image():
+    car_images = ['Images/pomaranczowe.png', 'Images/policja.png', 'Images/karetka.png', 'Images/taxi.png', 'Images/van.png', 'Images/zielony.png']
+    return random.choice(car_images)
+
+class CarThread(threading.Thread):
+    def __init__(self, screen):
+        super(CarThread, self).__init__()
+        self.screen = screen
+        self.cars = []
+        self.running = True
+
+    def generate_cars(self):
+        # Samochody na lewej połowie ekranu poruszają się tylko w dół
+        x = random.randint(50, 375)
+        y = random.randint(-160, -80)
+        direction = "down"
+        car = Car('Images/policja.png', x, y, direction)
+        self.cars.append(car)
+
+        # Samochody na prawej połowie ekranu poruszają się tylko w górę
+        x = random.randint(425, 750)
+        y = random.randint(600, 680)
+        direction = "up"
+
+        image_path = random_car_image()
+        car = Car(image_path, x, y, direction)
+        self.cars.append(car)
+
+    def run(self):
+        while self.running:
+            self.generate_cars()
+            time.sleep(random.uniform(1, 5))  # Losowy czas między generacją samochodów
+
+    def stop(self):
+        self.running = False
+
 
 def draw_background(screen, width, height):
     # Rysowanie tła
@@ -77,9 +129,11 @@ def main():
     player1 = Player("Player 1", 'Images/pomaranczowe.png', 150, 400, {'up': pygame.K_UP, 'down': pygame.K_DOWN, 'left': pygame.K_LEFT, 'right': pygame.K_RIGHT})
     player2 = Player("Player 2", 'Images/zielony.png', 600, 400, {'up': pygame.K_w, 'down': pygame.K_s, 'left': pygame.K_a, 'right': pygame.K_d})
 
-    # Thread for cash
+    # Thread for cash and cars
     cash_thread = CashThread(player1, player2, screen)
+    car_thread = CarThread(screen)
     cash_thread.start()
+    car_thread.start()
 
     running = True
     clock = pygame.time.Clock()
@@ -121,12 +175,19 @@ def main():
         for cash in cash_thread.cash:
             pygame.draw.rect(screen, (255, 255, 0), pygame.Rect(cash[0], cash[1], 20, 20))
 
+        # drawing car on the screen
+        for car in car_thread.cars:
+            screen.blit(car.image, (car.x, car.y))
+            car.move()
+
         pygame.display.flip()
         clock.tick(60)
 
-        # Stop cash thread
+        # Stop cash and car thread
     cash_thread.stop()
+    car_thread.stop()
     cash_thread.join()
+    car_thread.join()
     pygame.quit()
 
 if __name__ == "__main__":
