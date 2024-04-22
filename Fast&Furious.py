@@ -21,7 +21,7 @@ class Road:
                               {'up': pygame.K_w, 'down': pygame.K_s, 'left': pygame.K_a, 'right': pygame.K_d})
 
         # Thread for cash and cars
-        self.cash_thread = Cash(self.player1, self.player2, self.screen)
+        self.cash_thread = Cash()
         self.car_thread = CarThread(self.screen)
         self.cash_thread.start()
         self.car_thread.start()
@@ -92,9 +92,6 @@ class Player:
         elif self.y > self.height - self.image.get_height():
             self.y = self.height - self.image.get_height()
 
-        # self.x = max(0, min(self.x, self.width - self.image.get_width()))
-        # self.y = max(0, min(self.y, self.height - self.image.get_height()))
-
     def move(self, pressed_keys):
         if pressed_keys[self.keys['up']]:
             self.y -= 5
@@ -125,11 +122,8 @@ class Car:
 
 
 class Cash(threading.Thread):
-    def __init__(self, player1, player2, screen):
+    def __init__(self):
         super(Cash, self).__init__()
-        self.player1 = player1
-        self.player2 = player2
-        self.screen = screen
         self.cash = []
         self.running = True
 
@@ -143,7 +137,7 @@ class Cash(threading.Thread):
         while self.running:
             # Cash generate
             self.generate_cash()
-            time.sleep(5)  # Example delay for generated cash
+            time.sleep(3)  # Example delay for generated cash
 
     def stop(self):
         self.running = False
