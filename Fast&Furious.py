@@ -37,9 +37,25 @@ class Road:
     def update_players(self, keys1, keys2):
         self.player1.move(keys1)
         self.player2.move(keys2)
+        self.check_collisions()
+
+    def check_collisions(self):
+        # Calculate collision bounding boxes
+        player1_rect = self.player1.image.get_rect(topleft=(self.player1.x, self.player1.y))
+        player2_rect = self.player2.image.get_rect(topleft=(self.player2.x, self.player2.y))
+
+        # Check for collision
+        if player1_rect.colliderect(player2_rect):
+            # Handle collision by moving players away from each other
+            self.player1.x += 5
+            self.player2.x -= 5
+
+
 
     def draw(self):
         draw_background(self.screen, self.width, self.height)
+
+
         self.screen.blit(self.player1.image, (self.player1.x, self.player1.y))
         self.screen.blit(self.player2.image, (self.player2.x, self.player2.y))
 
