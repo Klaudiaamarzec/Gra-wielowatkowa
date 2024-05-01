@@ -13,6 +13,10 @@ class Road:
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Fast and Furious")
 
+        # State variables
+        self.game_started = False  # Flag to track if the game has started
+        self.start_button_rect = pygame.Rect(300, 250, 200, 100)  # Rectangle for the start button
+
         # Players
         self.player1 = Player("Player 1", 'Images/pomaranczowe.png', 600, 400, self.width, self.height,
                               {'up': pygame.K_UP, 'down': pygame.K_DOWN, 'left': pygame.K_LEFT,
@@ -33,6 +37,10 @@ class Road:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN and not self.game_started:
+                # Check if the start button is clicked
+                if self.start_button_rect.collidepoint(event.pos):
+                    self.game_started = True
 
     def update_players(self, keys1, keys2):
         self.player1.move(keys1)
@@ -50,11 +58,17 @@ class Road:
             self.player1.x += 5
             self.player2.x -= 5
 
+    def draw_start_screen(self):
+        self.screen.fill((250, 227, 239))  #  background
+        font = pygame.font.Font(None, 36)
+        start_text = font.render("   Start", True, (255, 255, 255))
+        start_button_color = (228, 70, 152) if self.start_button_rect.collidepoint(pygame.mouse.get_pos()) else (
+        255, 105, 180)
+        pygame.draw.rect(self.screen, start_button_color, self.start_button_rect, border_radius=10)
+        self.screen.blit(start_text, (350, 290))
 
-
-    def draw(self):
+    def draw_game_screen(self):
         draw_background(self.screen, self.width, self.height)
-
 
         self.screen.blit(self.player1.image, (self.player1.x, self.player1.y))
         self.screen.blit(self.player2.image, (self.player2.x, self.player2.y))
@@ -68,6 +82,12 @@ class Road:
             self.screen.blit(car.image, (car.x, car.y))
             car.move()
 
+    def draw(self):
+        if not self.game_started:
+            self.draw_start_screen()
+        else:
+            self.draw_game_screen()
+
         pygame.display.flip()
         self.clock.tick(60)
 
@@ -76,7 +96,8 @@ class Road:
             self.handle_events()
             keys1 = pygame.key.get_pressed()
             keys2 = pygame.key.get_pressed()
-            self.update_players(keys1, keys2)
+            if self.game_started:
+                self.update_players(keys1, keys2)
             self.draw()
 
         # Stop cash and car thread
