@@ -9,6 +9,7 @@ class Road:
     def __init__(self):
         pygame.init()
         self.cars = []
+        self.cash = []
         # Window settings
         self.width, self.height = 800, 600
         self.screen = pygame.display.set_mode((self.width, self.height))
@@ -21,23 +22,23 @@ class Road:
         # Players
         self.player1 = Player("Player 1", 'Images/pomaranczowe.png', 600, 400, self.width, self.height,
                               {'up': pygame.K_UP, 'down': pygame.K_DOWN, 'left': pygame.K_LEFT,
-                               'right': pygame.K_RIGHT})
+                               'right': pygame.K_RIGHT}, self.cars, self.cash)
         self.player2 = Player("Player 2", 'Images/zielony.png', 150, 400, self.width, self.height,
-                              {'up': pygame.K_w, 'down': pygame.K_s, 'left': pygame.K_a, 'right': pygame.K_d})
+                              {'up': pygame.K_w, 'down': pygame.K_s, 'left': pygame.K_a, 'right': pygame.K_d},
+                              self.cars, self.cash)
 
         # Thread for cash, cars and collisions
-        self.cash_thread = Cash()
+        self.cash_thread = CashThread(self.screen, self.cash)
         self.car_thread = CarThread(self.screen, self.cars)
         self.player_collision = PlayerCollision(self.player1, self.player2)
         self.collision_thread = Collision(self.cars)
-        self.player1_collision = GameOverCollision(self.player1, self.cars)
-        self.player2_collision = GameOverCollision(self.player2, self.cars)
+        self.removecash_thread = RemoveCashThread(self.cash)
+
         self.cash_thread.start()
         self.car_thread.start()
         self.player_collision.start()
         self.collision_thread.start()
-        self.player1_collision.start()
-        self.player2_collision.start()
+        self.removecash_thread.start()
 
         self.running = True
         self.clock = pygame.time.Clock()
@@ -62,13 +63,20 @@ class Road:
         self.screen.blit(self.player2.image, (self.player2.x, self.player2.y))
 
         # drawing cash on the screen
-        for cash in self.cash_thread.cash:
-            pygame.draw.rect(self.screen, (255, 255, 0), pygame.Rect(cash[0], cash[1], 20, 20))
+        for cash in self.cash:
+            self.screen.blit(cash.dollar_image, (cash.x, cash.y))
 
         # drawing car on the screen
         for car in self.cars:
             self.screen.blit(car.image, (car.x, car.y))
             car.move()
+
+        # Wyświetl ilość zebranych pieniędzy dla każdego gracza
+        # font = pygame.font.Font(None, 36)
+        # player1_text = font.render(f"COINS: {self.player2.cash_collected}", True, (255, 255, 0))
+        # player2_text = font.render(f"COINS: {self.player1.cash_collected}", True, (255, 255, 0))
+        # self.screen.blit(player1_text, (20, 20))
+        # self.screen.blit(player2_text, (self.width - player2_text.get_width() - 20, 20))
 
         pygame.display.flip()
         self.clock.tick(60)
@@ -79,8 +87,8 @@ class Road:
         else:
             self.draw_game_screen()
 
-        pygame.display.flip()
-        self.clock.tick(60)
+        # pygame.display.flip()
+        # self.clock.tick(60)
 
     def run(self):
         while self.running:
@@ -103,14 +111,13 @@ class Road:
         self.car_thread.stop()
         self.player_collision.stop()
         self.collision_thread.stop()
-        self.player1_collision.stop()
-        self.player2_collision.stop()
+        self.removecash_thread.stop()
+
         self.cash_thread.join()
         self.car_thread.join()
         self.player_collision.join()
         self.collision_thread.join()
-        self.player1_collision.join()
-        self.player2_collision.join()
+        self.removecash_thread.join()
 
     def game_over(self):
         game_over_screen = GameOverScreen(self.width, self.height)
@@ -129,7 +136,7 @@ class Road:
 
 
 class Player:
-    def __init__(self, name, image_path, x, y, width, height, keys):
+    def __init__(self, name, image_path, x, y, width, height, keys, cars, cash):
         self.name = name
         self.image = pygame.image.load(image_path)
         self.image = pygame.transform.scale(self.image, (80, 160))  # Przykładowa skala dla samochodu
@@ -138,6 +145,9 @@ class Player:
         self.width = width
         self.height = height
         self.keys = keys
+        self.cars = cars
+        self.cash = cash
+        self.cash_collected = 0
         self.game_over = False
 
     def check_boundaries(self):
@@ -150,6 +160,25 @@ class Player:
         elif self.y > self.height - self.image.get_height():
             self.y = self.height - self.image.get_height()
 
+    def check_collisions(self):
+        player_rect = self.image.get_rect(topleft=(self.x, self.y))
+
+        for car in self.cars:
+            car_rect = car.image.get_rect(topleft=(car.x, car.y))
+            if player_rect.colliderect(car_rect):
+                # Game over for this player
+                self.game_over = True
+
+    def check_cash_collected(self):
+        player_rect = self.image.get_rect(topleft=(self.x, self.y))
+
+        for cash in self.cash:
+            cash_rect = cash.dollar_image.get_rect(topleft=(cash.x, cash.y))
+            if player_rect.colliderect(cash_rect):
+                cash.collected = True
+                self.cash_collected += 1
+                print("Player ", self.name, "has collected: ", self.cash_collected, " coins")
+
     def move(self, pressed_keys):
         if pressed_keys[self.keys['up']]:
             self.y -= 5
@@ -160,7 +189,63 @@ class Player:
         elif pressed_keys[self.keys['right']]:
             self.x += 5
 
+        self.check_collisions()
+        self.check_cash_collected()
         self.check_boundaries()
+
+
+class Cash:
+    def __init__(self, screen, x, y):
+        super(Cash, self).__init__()
+        self.screen = screen
+        self.dollar_image = pygame.image.load("Images/dollar.png")
+        self.dollar_image = pygame.transform.scale(self.dollar_image, (25, 25))  # Dostosuj rozmiar obrazka
+        self.x = x
+        self.y = y
+        self.collected = False
+
+
+class RemoveCashThread(threading.Thread):
+    def __init__(self, cash):
+        super(RemoveCashThread, self).__init__()
+        self.cash = cash
+        self.running = True
+
+    def run(self):
+        while self.running:
+            for c in self.cash:
+                if c.collected:
+                    self.cash.remove(c)
+                    break
+
+    def stop(self):
+        self.running = False
+
+
+class CashThread(threading.Thread):
+    def __init__(self, screen, cash):
+        super(CashThread, self).__init__()
+        self.cash = cash
+        self.screen = screen
+        self.running = True
+        self.lock = threading.Lock()  # Mutex
+
+    def generate_cash(self):
+        # Cash position draw
+        x = random.randint(0, 750)
+        y = random.randint(0, 550)
+        with self.lock:
+            cash = Cash(self.screen, x, y)
+            self.cash.append(cash)
+
+    def run(self):
+        while self.running:
+            # Cash generate
+            self.generate_cash()
+            time.sleep(3)  # Example delay for generated cash
+
+    def stop(self):
+        self.running = False
 
 
 class Car:
@@ -177,28 +262,6 @@ class Car:
             self.y -= self.speed
         else:
             self.y += self.speed
-
-
-class Cash(threading.Thread):
-    def __init__(self):
-        super(Cash, self).__init__()
-        self.cash = []
-        self.running = True
-
-    def generate_cash(self):
-        # Cash position draw
-        x = random.randint(0, 750)
-        y = random.randint(0, 550)
-        self.cash.append((x, y))
-
-    def run(self):
-        while self.running:
-            # Cash generate
-            self.generate_cash()
-            time.sleep(3)  # Example delay for generated cash
-
-    def stop(self):
-        self.running = False
 
 
 class CarThread(threading.Thread):
@@ -236,36 +299,25 @@ class CarThread(threading.Thread):
             # Dodaj nowy samochód do listy
             self.cars.append(car)
 
-    def generate_cars(self):
-        # Samochody na lewej połowie ekranu poruszają się tylko w dół
-        x = random.randint(50, 375)
-        y = random.randint(-160, -80)
-        direction = "down"
-
-        self.generate_car(x, y, direction)
-
-        # Samochody na prawej połowie ekranu poruszają się tylko w górę
-        x = random.randint(425, 750)
-        y = random.randint(600, 680)
-        direction = "up"
-
-        self.generate_car(x, y, direction)
-
     def run(self):
         while self.running:
-            self.generate_cars()
-            time.sleep(random.uniform(5, 10))  # Losowy czas między generacją samochodów
+            self.generate_car(random.randint(50, 375), random.randint(-160, -80), "down")
+            self.generate_car(random.randint(375, 750), random.randint(600, 700), "up")
+            time.sleep(random.uniform(5, 10))  # Losowy czas między generacją samochodów 5 10
 
     def stop(self):
         self.running = False
 
     def check_collision(self, car1, car2):
         # Sprawdź, czy dwie samochody kolidują ze sobą
-        distance = ((car1.x - car2.x) ** 2 + (car1.y - car2.y) ** 2) ** 0.5
-        if distance < 100:  # Jeśli odległość jest mniejsza niż 100 pikseli, kolidują
-            return True
-        else:
-            return False
+        # distance = ((car1.x - car2.x) ** 2 + (car1.y - car2.y) ** 2) ** 0.5
+        # if distance < 50:  # Jeśli odległość jest mniejsza niż 100 pikseli, kolidują
+        #     return True
+        # else:
+        #     return False
+        car1_rect = pygame.Rect(car1.x, car1.y, car1.image.get_width(), car1.image.get_height())
+        car2_rect = pygame.Rect(car2.x, car2.y, car2.image.get_width(), car2.image.get_height())
+        return car1_rect.colliderect(car2_rect)
 
 
 class PlayerCollision(threading.Thread):
@@ -294,7 +346,24 @@ class PlayerCollision(threading.Thread):
         self.running = False
 
 
-def check_collisions(car1, car2):
+# Check if there's enough space on the left side
+def can_move_left(faster_car, cars, car_width):
+    for car in cars:
+        if car != faster_car and pygame.Rect(car.x, car.y, car.image.get_width(), car.image.get_height()).colliderect(
+                pygame.Rect(faster_car.x - 5, faster_car.y, car_width, faster_car.image.get_height())):
+            return False
+    return True
+
+
+def can_move_right(faster_car, cars, car_width):
+    for car in cars:
+        if car != faster_car and pygame.Rect(car.x, car.y, car.image.get_width(), car.image.get_height()).colliderect(
+                pygame.Rect(faster_car.x + 5, faster_car.y, car_width, faster_car.image.get_height())):
+            return False
+    return True
+
+
+def check_collisions(car1, car2, cars):
     # Calculate collision bounding boxes
     car1_rect = car1.image.get_rect(topleft=(car1.x, car1.y))
     car2_rect = car2.image.get_rect(topleft=(car2.x, car2.y))
@@ -324,18 +393,21 @@ def check_collisions(car1, car2):
                 faster_car = car2
                 slower_car = car1
 
+            faster_car.speed = slower_car.speed
+            car_width = faster_car.image.get_width()
+
             # Random direction
             direction = random.choice([True, False])
             if direction:
-                # Sprawdź czy można skręcić w lewo
-                if faster_car.x > 5:  # Upewnij się, że jest wystarczająco miejsca po lewej stronie
+                # Sprawdź czy można skręcić w prawo
+                if can_move_right(faster_car, cars, car_width):
                     faster_car.x += 5
                 else:
                     # Jeśli nie ma wystarczająco miejsca po lewej, zwolnij
                     faster_car.speed = slower_car.speed
             else:
                 # Sprawdź czy można skręcić w lewo
-                if faster_car.x > 5:  # Upewnij się, że jest wystarczająco miejsca po lewej stronie
+                if can_move_left(faster_car, cars, car_width):
                     faster_car.x -= 5
                 else:
                     # Jeśli nie ma wystarczająco miejsca po lewej, zwolnij
@@ -353,33 +425,8 @@ class Collision(threading.Thread):
             for car1 in self.cars:
                 for car2 in self.cars:
                     if car1 != car2:
-                        check_collisions(car1, car2)
+                        check_collisions(car1, car2, self.cars)
             # time.sleep(0.1)  # Sprawdź kolizje co 0.1 sekundy
-
-    def stop(self):
-        self.running = False
-
-
-class GameOverCollision(threading.Thread):
-    def __init__(self, player, cars):
-        super().__init__()
-        self.player = player
-        self.cars = cars
-        self.running = True
-
-    def check_collisions(self):
-        player_rect = self.player.image.get_rect(topleft=(self.player.x, self.player.y))
-
-        for car in self.cars:
-            car_rect = car.image.get_rect(topleft=(car.x, car.y))
-            if player_rect.colliderect(car_rect):
-                # Game over for this player
-                self.player.game_over = True
-
-    def run(self):
-        while self.running:
-            self.check_collisions()
-            # time.sleep(0.1)    # Opóźnienie, żeby nie obciążać procesora
 
     def stop(self):
         self.running = False
