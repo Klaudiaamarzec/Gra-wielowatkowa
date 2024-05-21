@@ -6,6 +6,14 @@ import random
 
 # Main thread - road
 class Road:
+    def draw(self):
+        if not self.game_started:
+            draw_start_screen(self.screen, self.start_button_rect)
+        else:
+            self.draw_game_screen()
+
+        pygame.display.flip()
+        self.clock.tick(60)
     def __init__(self):
         pygame.init()
         self.cars = []
@@ -72,11 +80,11 @@ class Road:
             car.move()
 
         # Wyświetl ilość zebranych pieniędzy dla każdego gracza
-        # font = pygame.font.Font(None, 36)
-        # player1_text = font.render(f"COINS: {self.player2.cash_collected}", True, (255, 255, 0))
-        # player2_text = font.render(f"COINS: {self.player1.cash_collected}", True, (255, 255, 0))
-        # self.screen.blit(player1_text, (20, 20))
-        # self.screen.blit(player2_text, (self.width - player2_text.get_width() - 20, 20))
+        font = pygame.font.Font(None, 36)
+        player1_text = font.render(f"COINS: {self.player2.cash_collected}", True, (255, 255, 0))
+        player2_text = font.render(f"COINS: {self.player1.cash_collected}", True, (255, 255, 0))
+        self.screen.blit(player1_text, (20, 20))
+        self.screen.blit(player2_text, (self.width - player2_text.get_width() - 20, 20))
 
         pygame.display.flip()
         self.clock.tick(60)
@@ -87,8 +95,8 @@ class Road:
         else:
             self.draw_game_screen()
 
-        # pygame.display.flip()
-        # self.clock.tick(60)
+    #     # pygame.display.flip()
+    #     # self.clock.tick(60)
 
     def run(self):
         while self.running:
@@ -97,7 +105,12 @@ class Road:
             keys2 = pygame.key.get_pressed()
             # if self.game_started:
             self.update_players(keys1, keys2)
+            self.screen.fill((0, 0, 0))
+
             self.draw_game_screen()
+
+            pygame.display.flip()
+            self.clock.tick(60)
 
             if self.player1.game_over or self.player2.game_over:
                 self.running = False
@@ -105,6 +118,8 @@ class Road:
 
         self.stop_threads()
         pygame.quit()
+
+
 
     def stop_threads(self):
         self.cash_thread.stop()
@@ -120,7 +135,13 @@ class Road:
         self.removecash_thread.join()
 
     def game_over(self):
-        game_over_screen = GameOverScreen(self.width, self.height)
+        if self.player1.game_over:
+            winner ="Player 2"
+        if self.player2.game_over:
+                winner = "Player 1"
+        game_over_screen = GameOverScreen(self.width, self.height, self.player1.cash_collected,
+                                          self.player2.cash_collected, winner)
+
         while True:
             if game_over_screen.handle_events():
                 self.restart_game()
@@ -128,6 +149,8 @@ class Road:
             game_over_screen.display_game_over()
             pygame.display.flip()
             self.clock.tick(60)
+
+        game_over_screen.write_points_to_file()
 
     def restart_game(self):
         # Przywróć wszystkie ustawienia do stanu początkowego
@@ -433,27 +456,70 @@ class Collision(threading.Thread):
 
 
 class GameOverScreen:
-    def __init__(self, width, height):
+    def __init__(self, width, height, player1_points, player2_points, winner=None):
         self.width = width
         self.height = height
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Game Over")
         self.font = pygame.font.Font(None, 36)
-        self.restart_button_rect = pygame.Rect(300, 250, 200, 100)
+        self.big_font = pygame.font.Font(None, 72)
+        self.restart_button_rect = pygame.Rect(300, 320, 200, 50)
+        self.player1_points = player1_points
+        self.player2_points = player2_points
+        self.read_points_from_file()
+        self.exit_button_rect = pygame.Rect(300, 500, 200, 50)
+        self.winner = winner
+
+
+    def read_points_from_file(self):
+        try:
+            with open("baza.txt", "r") as file:
+                self.player1_points += int(file.readline().strip())
+                self.player2_points += int(file.readline().strip())
+        except FileNotFoundError:
+            pass
+
+    def write_points_to_file(self):
+        with open("baza.txt", "w") as file:
+            file.write(str(self.player1_points) + "\n")
+            file.write(str(self.player2_points) + "\n")
 
     def display_game_over(self):
-        self.screen.fill((250, 227, 239))  # background
-        game_over_text = self.font.render("GAME OVER", True, (255, 0, 0))
-        self.screen.blit(game_over_text, (300, 200))
+        self.screen.fill((250, 227, 239))
 
-        # Draw restart button
+        game_over_text = self.big_font.render("GAME OVER!", True, (255, 0, 0))
+        game_over_text_rect = game_over_text.get_rect(center=(self.width // 2, 100))
+        self.screen.blit(game_over_text, game_over_text_rect)
+
+        player1_points_text = self.font.render(f"Player 1 Points: {self.player1_points}", True, (0, 0, 255))
+        player2_points_text = self.font.render(f"Player 2 Points: {self.player2_points}", True, (0, 0, 255))
+
+        player_points_x = self.width // 2 - player1_points_text.get_width() // 2
+        player1_points_y = 400
+        player2_points_y = 440
+
+        self.screen.blit(player1_points_text, (player_points_x, player1_points_y))
+        self.screen.blit(player2_points_text, (player_points_x, player2_points_y))
+
         pygame.draw.rect(self.screen, (0, 255, 0), self.restart_button_rect)
         restart_text = self.font.render("Restart", True, (255, 255, 255))
-        self.screen.blit(restart_text, (350, 290))
+        restart_text_rect = restart_text.get_rect(center=self.restart_button_rect.center)
+        self.screen.blit(restart_text, restart_text_rect)
+
+        if self.winner:
+            winner_text = self.big_font.render(f"Gracz {self.winner} wygrał!", True, (0, 255, 0))
+            winner_text_rect = winner_text.get_rect(center=(self.width // 2, 200))
+            self.screen.blit(winner_text, winner_text_rect)
+
+        pygame.draw.rect(self.screen, (255, 0, 0), self.exit_button_rect)
+        exit_text = self.font.render("Zakończ grę", True, (255, 255, 255))
+        exit_text_rect = exit_text.get_rect(center=self.exit_button_rect.center)
+        self.screen.blit(exit_text, exit_text_rect)
 
         pygame.display.flip()
 
     def handle_events(self):
+        # Obsługa zdarzeń myszy
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -461,7 +527,11 @@ class GameOverScreen:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if self.restart_button_rect.collidepoint(event.pos):
                     return True
+                elif self.exit_button_rect.collidepoint(event.pos):  # Obsługa przycisku "Zakończ grę"
+                    pygame.quit()
+                    quit()
         return False
+
 
 
 # def game_over():
@@ -502,6 +572,8 @@ def draw_start_screen(screen, button):
         255, 105, 180)
     pygame.draw.rect(screen, start_button_color, button, border_radius=10)
     screen.blit(start_text, (350, 290))
+    pygame.display.flip()  # Dodajemy to wywołanie, aby zaktualizować widoczny obraz
+
 
 
 if __name__ == "__main__":
