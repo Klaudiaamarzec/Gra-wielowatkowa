@@ -1,12 +1,23 @@
-import pygame
-import threading
+"""
+Fast and Furious - Gra wyścigowa
+"""
+import sys
 import time
 import random
+import threading
+import pygame
 
-
-# Main thread - road
 class Road:
+    """
+    Główny wątek gry, zarządza logiką gry, włączając w to wyświetlanie ekranu startowego,
+     obsługę zdarzeń, aktualizację graczy oraz zarządzanie innymi wątkami.
+    """
     def draw(self):
+        """
+        Metoda rysuje ekran gry.
+        Jeśli gra nie została jeszcze rozpoczęta, rysuje ekran startowy.
+        W przeciwnym razie rysuje ekran gry.
+        """
         if not self.game_started:
             draw_start_screen(self.screen, self.start_button_rect)
         else:
@@ -14,6 +25,7 @@ class Road:
 
         pygame.display.flip()
         self.clock.tick(60)
+
     def __init__(self):
         pygame.init()
         self.cars = []
@@ -24,7 +36,7 @@ class Road:
         pygame.display.set_caption("Fast and Furious")
 
         # State variables
-        self.start_button_rect = pygame.Rect(300, 250, 200, 100)  # Rectangle for the start button
+        self.start_button_rect = pygame.Rect(300, 250, 200, 100) #Rectangle for the start button
         self.game_started = False  # Flag to track if the game has started
 
         # Players
@@ -52,6 +64,9 @@ class Road:
         self.clock = pygame.time.Clock()
 
     def handle_events(self):
+        """
+        Metoda obsługuje zdarzenia, takie jak naciśnięcie klawiszy lub zamknięcie okna.
+        """
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
@@ -88,15 +103,6 @@ class Road:
 
         pygame.display.flip()
         self.clock.tick(60)
-
-    def draw(self):
-        if not self.game_started:
-            draw_start_screen(self.screen, self.start_button_rect)
-        else:
-            self.draw_game_screen()
-
-    #     # pygame.display.flip()
-    #     # self.clock.tick(60)
 
     def run(self):
         while self.running:
@@ -135,12 +141,12 @@ class Road:
         self.removecash_thread.join()
 
     def game_over(self):
+        winner = None
         if self.player1.game_over:
             winner ="Player 2"
         if self.player2.game_over:
-                winner = "Player 1"
-        game_over_screen = GameOverScreen(self.width, self.height, self.player1.cash_collected,
-                                          self.player2.cash_collected, winner)
+            winner = "Player 1"
+        game_over_screen = GameOverScreen(self.width, self.height, self.player1.cash_collected,self.player2.cash_collected, winner)
 
         while True:
             if game_over_screen.handle_events():
@@ -154,15 +160,15 @@ class Road:
 
     def restart_game(self):
         # Przywróć wszystkie ustawienia do stanu początkowego
-        self.__init__()
-        self.run()
+        new_instance = type(self)()
+        new_instance.run()
 
 
 class Player:
     def __init__(self, name, image_path, x, y, width, height, keys, cars, cash):
         self.name = name
         self.image = pygame.image.load(image_path)
-        self.image = pygame.transform.scale(self.image, (80, 160))  # Przykładowa skala dla samochodu
+        self.image = pygame.transform.scale(self.image, (80, 160))  #Przykładowa skala dla samochodu
         self.x = x
         self.y = y
         self.width = width
@@ -219,7 +225,7 @@ class Player:
 
 class Cash:
     def __init__(self, screen, x, y):
-        super(Cash, self).__init__()
+        super().__init__()
         self.screen = screen
         self.dollar_image = pygame.image.load("Images/dollar.png")
         self.dollar_image = pygame.transform.scale(self.dollar_image, (25, 25))  # Dostosuj rozmiar obrazka
@@ -230,7 +236,7 @@ class Cash:
 
 class RemoveCashThread(threading.Thread):
     def __init__(self, cash):
-        super(RemoveCashThread, self).__init__()
+        super().__init__()
         self.cash = cash
         self.running = True
 
@@ -247,7 +253,7 @@ class RemoveCashThread(threading.Thread):
 
 class CashThread(threading.Thread):
     def __init__(self, screen, cash):
-        super(CashThread, self).__init__()
+        super().__init__()
         self.cash = cash
         self.screen = screen
         self.running = True
@@ -289,7 +295,7 @@ class Car:
 
 class CarThread(threading.Thread):
     def __init__(self, screen, cars):
-        super(CarThread, self).__init__()
+        super().__init__()
         self.screen = screen
         self.cars = cars
 
@@ -372,8 +378,10 @@ class PlayerCollision(threading.Thread):
 # Check if there's enough space on the left side
 def can_move_left(faster_car, cars, car_width):
     for car in cars:
-        if car != faster_car and pygame.Rect(car.x, car.y, car.image.get_width(), car.image.get_height()).colliderect(
-                pygame.Rect(faster_car.x - 5, faster_car.y, car_width, faster_car.image.get_height())):
+        if car != faster_car and pygame.Rect(car.x, car.y, car.image.get_width(),
+                                             car.image.get_height()).colliderect(
+                pygame.Rect(faster_car.x - 5, faster_car.y, car_width,
+                            faster_car.image.get_height())):
             return False
     return True
 
@@ -439,7 +447,7 @@ def check_collisions(car1, car2, cars):
 
 class Collision(threading.Thread):
     def __init__(self, cars):
-        super(Collision, self).__init__()
+        super().__init__()
         self.cars = cars
         self.running = True
 
@@ -459,6 +467,8 @@ class GameOverScreen:
     def __init__(self, width, height, player1_points, player2_points, winner=None):
         self.width = width
         self.height = height
+        self.file_path = "baza.txt"
+
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Game Over")
         self.font = pygame.font.Font(None, 36)
@@ -473,16 +483,17 @@ class GameOverScreen:
 
     def read_points_from_file(self):
         try:
-            with open("baza.txt", "r") as file:
+            with open(self.file_path, "r", encoding="utf-8") as file:
                 self.player1_points += int(file.readline().strip())
                 self.player2_points += int(file.readline().strip())
         except FileNotFoundError:
             pass
 
     def write_points_to_file(self):
-        with open("baza.txt", "w") as file:
+        with open(self.file_path, "w", encoding="utf-8") as file:
             file.write(str(self.player1_points) + "\n")
             file.write(str(self.player2_points) + "\n")
+        sys.exit()
 
     def display_game_over(self):
         self.screen.fill((250, 227, 239))
@@ -523,13 +534,13 @@ class GameOverScreen:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-                quit()
+                sys.exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if self.restart_button_rect.collidepoint(event.pos):
                     return True
-                elif self.exit_button_rect.collidepoint(event.pos):  # Obsługa przycisku "Zakończ grę"
+                if self.exit_button_rect.collidepoint(event.pos):  # Obsługa przycisku "Zakończ grę"
                     pygame.quit()
-                    quit()
+                    sys.exit()
         return False
 
 

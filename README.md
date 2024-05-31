@@ -1,6 +1,6 @@
 # Fast and Furious - multiplayer game
 
-Fast and Furious to prosta gra stworzona w języku Python z wykorzystaniem biblioteki Pygame. Gra polega na sterowaniu samochodami i zbieraniu pieniędzy na drodze, unikając przy tym kolizji z innymi pojazdami.
+Fast and Furious to prosta gra wyścigowa stworzona w języku Python z wykorzystaniem biblioteki Pygame.  Gra umożliwia rozgrywkę dla dwóch graczy, którzy rywalizują o wygrana. Polega na sterowaniu samochodami i zbieraniu pieniędzy na drodze, unikając przy tym kolizji z innymi pojazdami.
 
 ## Jak uruchomić grę?
 
@@ -10,15 +10,45 @@ Fast and Furious to prosta gra stworzona w języku Python z wykorzystaniem bibli
    pip install pygame
    ```
 
-2. Po zainstalowaniu Pygame, uruchom plik `main.py`.
+2. Po zainstalowaniu Pygame, uruchom plik `game.py`.
 
-## Stosowane Mutexy:
+## Wątki:
+Reprezentują różne aspekty gry, które muszą działać równolegle. Wszystkie te wątki działają równolegle, co pozwala na płynną rozgrywkę gry z wieloma interakcjami pomiędzy obiektami na ekranie.
+
+### Road
+
+Główny wątek gry, zarządza logiką gry, włączając w to wyświetlanie ekranu startowego, obsługę zdarzeń, aktualizację graczy oraz zarządzanie innymi wątkami.
+
+### CashThread
+
+Wątek odpowiedzialny za generowanie pieniędzy (obiektów "Cash") na ekranie w losowych miejscach. Pieniądze pojawiają się co jakiś czas i znikają po zebraniu przez gracza.
+
+### CarThread
+
+Generuje samochody (obiekty "Car") na ekranie. Samochody poruszają się w dwóch kierunkach i mają losowe prędkości. Nowe samochody pojawiają się co pewien czas.
+
+### PlayerCollision
+
+Sprawdza kolizje pomiędzy graczami. Jeśli gracze się zderzą, wątek ten przesuwa graczy, aby uniknąć nakładania się na siebie.
+
+### Collision
+
+Sprawdza kolizje pomiędzy samochodami na drodze. Jeśli dwa samochody zderzą się, wątek ten odpowiednio je przesuwa, aby uniknąć nakładania się na siebie.
+
+### RemoveCashThread
+
+Usuwa pieniądze, które zostały zebrane przez graczy. Kiedy gracz zebrał pieniądz, ten wątek usuwa go z ekranu.
+
+
+## Stosowane sekcje krytyczne:
 
 W grze Fast and Furious wykorzystywane są mutexy do synchronizacji dostępu do wspólnych zasobów przez różne wątki. Mutexy są używane w celu zapewnienia bezpiecznego dostępu do listy samochodów i listy pieniędzy. Dzięki temu unikamy wyścigów (race conditions) i zapewniamy spójność danych w grze.
 
-- Mutex dla listy samochodów (CarThread): Wątek generujący samochody (CarThread) korzysta z mutexu, aby synchronizować dostęp do listy samochodów. Mutex zapewnia, że tylko jeden wątek naraz może dodawać nowe samochody do listy, co eliminuje możliwość konfliktów przy dostępie do wspólnego zasobu.
+### Mutex dla listy samochodów (CarThread) 
+Wątek generujący samochody (CarThread) korzysta z mutexu, aby synchronizować dostęp do listy samochodów. Mutex zapewnia, że tylko jeden wątek naraz może dodawać nowe samochody do listy, co eliminuje możliwość konfliktów przy dostępie do wspólnego zasobu.
 
-- Mutex dla listy pieniędzy (CashThread): Podobnie jak w przypadku samochodów, wątek generujący pieniądze (CashThread) korzysta z mutexu, aby synchronizować dostęp do listy pieniędzy na drodze. Dzięki mutexowi zapewniamy bezpieczny dostęp do tej listy, eliminując możliwość równoczesnego dostępu przez wiele wątków.
+### Mutex dla listy pieniędzy (CashThread) 
+Podobnie jak w przypadku samochodów, wątek generujący pieniądze (CashThread) korzysta z mutexu, aby synchronizować dostęp do listy pieniędzy na drodze. Dzięki mutexowi zapewniamy bezpieczny dostęp do tej listy, eliminując możliwość równoczesnego dostępu przez wiele wątków.
 ## Instrukcje gry:
 
 - Po uruchomieniu gry, możesz rozpocząć grę, klikając przycisk "Start".
