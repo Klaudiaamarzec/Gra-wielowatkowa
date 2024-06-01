@@ -13,18 +13,13 @@ class Road:
      obsługę zdarzeń, aktualizację graczy oraz zarządzanie innymi wątkami.
     """
 
-    def __init__(self):
+    def __init__(self, screen):
+        self.screen = screen
+        self.width, self.height = 800, 600
         pygame.init()
         self.cars = []
         self.cash = []
-        # Window settings
-        self.width, self.height = 800, 600
-        self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Fast and Furious")
-
-        # State variables
-        self.start_button_rect = pygame.Rect(300, 250, 200, 100) #Rectangle for the start button
-        self.game_started = False  # Flag to track if the game has started
 
         # Players
         self.player1 = Player("Player 1", 'Images/pomaranczowe.png', 600, 400,
@@ -37,13 +32,11 @@ class Road:
         # Thread for cash, cars and collisions
         self.cash_thread = CashThread(self.screen, self.cash)
         self.car_thread = CarThread(self.screen, self.cars)
-        self.player_collision = PlayerCollision(self.player1, self.player2)
         self.collision_thread = Collision(self.cars)
         self.removecash_thread = RemoveCashThread(self.cash)
 
         self.cash_thread.start()
         self.car_thread.start()
-        self.player_collision.start()
         self.collision_thread.start()
         self.removecash_thread.start()
 
@@ -57,28 +50,21 @@ class Road:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN and not self.game_started:
-                # Check if the start button is clicked
-                if self.start_button_rect.collidepoint(event.pos):
-                    self.game_started = True
 
     def update_players(self, keys1, keys2):
         self.player1.move(keys1)
         self.player2.move(keys2)
 
-    def draw(self):
-        """
-        Metoda rysuje ekran gry.
-        Jeśli gra nie została jeszcze rozpoczęta, rysuje ekran startowy.
-        W przeciwnym razie rysuje ekran gry.
-        """
-        if not self.game_started:
-            draw_start_screen(self.screen, self.start_button_rect)
-        else:
-            self.draw_game_screen()
+    def check_collisions(self):
+        # Calculate collision bounding boxes
+        player1_rect = self.player1.image.get_rect(topleft=(self.player1.x, self.player1.y))
+        player2_rect = self.player2.image.get_rect(topleft=(self.player2.x, self.player2.y))
 
-        pygame.display.flip()
-        self.clock.tick(60)
+        # Check for collision
+        if player1_rect.colliderect(player2_rect):
+            # Handle collision by moving players away from each other
+            self.player1.x += 5
+            self.player2.x -= 5
 
     def draw_game_screen(self):
         draw_background(self.screen, self.width, self.height)
@@ -110,8 +96,8 @@ class Road:
             self.handle_events()
             keys1 = pygame.key.get_pressed()
             keys2 = pygame.key.get_pressed()
-            # if self.game_started:
             self.update_players(keys1, keys2)
+            self.check_collisions()
             self.screen.fill((0, 0, 0))
 
             self.draw_game_screen()
@@ -121,47 +107,24 @@ class Road:
 
             if self.player1.game_over or self.player2.game_over:
                 self.running = False
-                self.game_over()
+                self.stop_threads()
+                pygame.quit()
+                game_over(self.player1, self.player2, self.width, self.height)
 
         self.stop_threads()
         pygame.quit()
 
     def stop_threads(self):
+
         self.cash_thread.stop()
         self.car_thread.stop()
-        self.player_collision.stop()
         self.collision_thread.stop()
         self.removecash_thread.stop()
 
         self.cash_thread.join()
         self.car_thread.join()
-        self.player_collision.join()
         self.collision_thread.join()
         self.removecash_thread.join()
-
-    def game_over(self):
-        winner = None
-        # Gracz zielony - po lewej - Player 2
-        if self.player1.game_over:
-            winner ="Zielony"
-        if self.player2.game_over:
-            winner = "Pomarańczowy"
-        game_over_screen = GameOverScreen(self.width, self.height, self.player1.cash_collected,self.player2.cash_collected, winner)
-
-        while True:
-            if game_over_screen.handle_events():
-                self.restart_game()
-                break
-            game_over_screen.display_game_over()
-            pygame.display.flip()
-            self.clock.tick(60)
-
-        game_over_screen.write_points_to_file()
-
-    def restart_game(self):
-        # Przywróć wszystkie ustawienia do stanu początkowego
-        new_instance = type(self)()
-        new_instance.run()
 
 
 class Player:
@@ -349,32 +312,6 @@ class CarThread(threading.Thread):
         return car1_rect.colliderect(car2_rect)
 
 
-class PlayerCollision(threading.Thread):
-    def __init__(self, player1, player2):
-        super().__init__()
-        self.player1 = player1
-        self.player2 = player2
-        self.running = True
-
-    def check_collisions(self):
-        # Calculate collision bounding boxes
-        player1_rect = self.player1.image.get_rect(topleft=(self.player1.x, self.player1.y))
-        player2_rect = self.player2.image.get_rect(topleft=(self.player2.x, self.player2.y))
-
-        # Check for collision
-        if player1_rect.colliderect(player2_rect):
-            # Handle collision by moving players away from each other
-            self.player1.x += 5
-            self.player2.x -= 5
-
-    def run(self):
-        while self.running:
-            self.check_collisions()
-
-    def stop(self):
-        self.running = False
-
-
 # Check if there's enough space on the left side
 def can_move_left(faster_car, cars, car_width):
     for car in cars:
@@ -469,6 +406,7 @@ class GameOverScreen:
         self.height = height
         self.file_path = "baza.txt"
 
+        pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Game Over")
         self.font = pygame.font.Font(None, 36)
@@ -479,7 +417,6 @@ class GameOverScreen:
         self.read_points_from_file()
         self.exit_button_rect = pygame.Rect(300, 500, 200, 50)
         self.winner = winner
-
 
     def read_points_from_file(self):
         try:
@@ -544,17 +481,6 @@ class GameOverScreen:
         return False
 
 
-
-# def game_over():
-#     pygame.init()
-#     game_over_screen = GameOverScreen(800, 600)
-#     running = True
-#     while running:
-#         game_over_screen.display_game_over()
-#         if game_over_screen.handle_events():
-#             running = False
-
-
 def random_car_image():
     car_images = ['Images/pomaranczowe.png', 'Images/policja.png', 'Images/karetka.png', 'Images/taxi.png',
                   'Images/van.png', 'Images/zielony.png']
@@ -575,18 +501,74 @@ def draw_background(screen, width, height):
         pygame.draw.rect(screen, lane_color, pygame.Rect(lane_x, 0, lane_width, height))
 
 
-def draw_start_screen(screen, button):
+def draw_start_screen(screen):
     screen.fill((250, 227, 239))  # background
+    start_button_rect = pygame.Rect(300, 250, 200, 100)  # Rectangle for the start button
     font = pygame.font.Font(None, 36)
     start_text = font.render("   Start", True, (255, 255, 255))
-    start_button_color = (228, 70, 152) if button.collidepoint(pygame.mouse.get_pos()) else (
+    start_button_color = (228, 70, 152) if start_button_rect.collidepoint(pygame.mouse.get_pos()) else (
         255, 105, 180)
-    pygame.draw.rect(screen, start_button_color, button, border_radius=10)
+    pygame.draw.rect(screen, start_button_color, start_button_rect, border_radius=10)
     screen.blit(start_text, (350, 290))
-    pygame.display.flip()  # Dodajemy to wywołanie, aby zaktualizować widoczny obraz
+    pygame.display.flip()
 
+
+def game_over(player1, player2, width, height):
+    winner = None
+    # Gracz zielony - po lewej - Player 2
+    if player1.game_over:
+        winner ="Zielony"
+    if player2.game_over:
+        winner = "Pomarańczowy"
+
+    game_over_screen = GameOverScreen(width, height, player1.cash_collected, player2.cash_collected, winner)
+
+    while True:
+        if game_over_screen.handle_events():
+            restart_game(width, height)
+            break
+        game_over_screen.display_game_over()
+        pygame.display.flip()
+        pygame.time.Clock().tick(60)
+
+    game_over_screen.write_points_to_file()
+
+
+def restart_game(width, height):
+    pygame.quit()
+    pygame.init()
+    screen = pygame.display.set_mode((width, height))
+    road = Road(screen)
+    road.run()
+
+
+def main():
+    pygame.init()
+
+    width, height = 800, 600
+    screen = pygame.display.set_mode((width, height))
+    pygame.display.set_caption("Start Screen")
+
+    clock = pygame.time.Clock()
+    start_screen_active = True
+
+    while start_screen_active:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if pygame.mouse.get_pressed()[0]:  # Left mouse button pressed
+                    mouse_pos = pygame.mouse.get_pos()
+                    if pygame.Rect(300, 250, 200, 100).collidepoint(mouse_pos):
+                        start_screen_active = False  # Exit the start screen loop
+
+        draw_start_screen(screen)
+        clock.tick(30)
+
+    road = Road(screen)
+    road.run()
 
 
 if __name__ == "__main__":
-    road = Road()
-    road.run()
+    main()
