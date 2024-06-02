@@ -12,19 +12,6 @@ class Road:
     Główny wątek gry, zarządza logiką gry, włączając w to wyświetlanie ekranu startowego,
      obsługę zdarzeń, aktualizację graczy oraz zarządzanie innymi wątkami.
     """
-    def draw(self):
-        """
-        Metoda rysuje ekran gry.
-        Jeśli gra nie została jeszcze rozpoczęta, rysuje ekran startowy.
-        W przeciwnym razie rysuje ekran gry.
-        """
-        if not self.game_started:
-            draw_start_screen(self.screen, self.start_button_rect)
-        else:
-            self.draw_game_screen()
-
-        pygame.display.flip()
-        self.clock.tick(60)
 
     def __init__(self):
         pygame.init()
@@ -40,12 +27,12 @@ class Road:
         self.game_started = False  # Flag to track if the game has started
 
         # Players
-        self.player1 = Player("Player 1", 'Images/pomaranczowe.png', 600, 400, self.width, self.height,
-                              {'up': pygame.K_UP, 'down': pygame.K_DOWN, 'left': pygame.K_LEFT,
-                               'right': pygame.K_RIGHT}, self.cars, self.cash)
-        self.player2 = Player("Player 2", 'Images/zielony.png', 150, 400, self.width, self.height,
-                              {'up': pygame.K_w, 'down': pygame.K_s, 'left': pygame.K_a, 'right': pygame.K_d},
-                              self.cars, self.cash)
+        self.player1 = Player("Player 1", 'Images/pomaranczowe.png', 600, 400,
+                              self.width, self.height,{'up': pygame.K_UP, 'down': pygame.K_DOWN,
+                              'left': pygame.K_LEFT, 'right': pygame.K_RIGHT}, self.cars, self.cash)
+        self.player2 = Player("Player 2", 'Images/zielony.png', 150, 400,
+                              self.width, self.height,{'up': pygame.K_w, 'down': pygame.K_s,
+                              'left': pygame.K_a, 'right': pygame.K_d}, self.cars, self.cash)
 
         # Thread for cash, cars and collisions
         self.cash_thread = CashThread(self.screen, self.cash)
@@ -79,6 +66,20 @@ class Road:
         self.player1.move(keys1)
         self.player2.move(keys2)
 
+    def draw(self):
+        """
+        Metoda rysuje ekran gry.
+        Jeśli gra nie została jeszcze rozpoczęta, rysuje ekran startowy.
+        W przeciwnym razie rysuje ekran gry.
+        """
+        if not self.game_started:
+            draw_start_screen(self.screen, self.start_button_rect)
+        else:
+            self.draw_game_screen()
+
+        pygame.display.flip()
+        self.clock.tick(60)
+
     def draw_game_screen(self):
         draw_background(self.screen, self.width, self.height)
 
@@ -95,11 +96,11 @@ class Road:
             car.move()
 
         # Wyświetl ilość zebranych pieniędzy dla każdego gracza
-        font = pygame.font.Font(None, 36)
-        player1_text = font.render(f"COINS: {self.player2.cash_collected}", True, (255, 255, 0))
-        player2_text = font.render(f"COINS: {self.player1.cash_collected}", True, (255, 255, 0))
-        self.screen.blit(player1_text, (20, 20))
-        self.screen.blit(player2_text, (self.width - player2_text.get_width() - 20, 20))
+        # font = pygame.font.Font(None, 36)
+        # player1_text = font.render(f"COINS: {self.player2.cash_collected}", True, (255, 255, 0))
+        # player2_text = font.render(f"COINS: {self.player1.cash_collected}", True, (255, 255, 0))
+        # self.screen.blit(player1_text, (20, 20))
+        # self.screen.blit(player2_text, (self.width - player2_text.get_width() - 20, 20))
 
         pygame.display.flip()
         self.clock.tick(60)
@@ -125,8 +126,6 @@ class Road:
         self.stop_threads()
         pygame.quit()
 
-
-
     def stop_threads(self):
         self.cash_thread.stop()
         self.car_thread.stop()
@@ -142,10 +141,11 @@ class Road:
 
     def game_over(self):
         winner = None
+        # Gracz zielony - po lewej - Player 2
         if self.player1.game_over:
-            winner ="Player 2"
+            winner ="Zielony"
         if self.player2.game_over:
-            winner = "Player 1"
+            winner = "Pomarańczowy"
         game_over_screen = GameOverScreen(self.width, self.height, self.player1.cash_collected,self.player2.cash_collected, winner)
 
         while True:
