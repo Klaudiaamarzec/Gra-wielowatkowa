@@ -13,7 +13,7 @@ Fast and Furious to prosta gra wyścigowa stworzona w języku Python z wykorzyst
 2. Po zainstalowaniu Pygame, uruchom plik `game.py`.
 
 ## Wątki:
-Reprezentują różne aspekty gry, które muszą działać równolegle. Wszystkie te wątki działają równolegle, co pozwala na płynną rozgrywkę gry z wieloma interakcjami pomiędzy obiektami na ekranie.
+Reprezentują różne aspekty gry, które muszą działać równolegle. Wszystkie te wątki działają równolegle, co pozwala na rozgrywkę gry z wieloma interakcjami pomiędzy obiektami na ekranie.
 
 ### Road
 
@@ -41,8 +41,7 @@ Usuwa pieniądze, które zostały zebrane przez graczy. Kiedy gracz zebrał pien
 
 
 ## Stosowane sekcje krytyczne:
-
-W grze Fast and Furious wykorzystywane są mutexy do synchronizacji dostępu do wspólnych zasobów przez różne wątki. Mutexy są używane w celu zapewnienia bezpiecznego dostępu do listy samochodów i listy pieniędzy. Dzięki temu unikamy wyścigów (race conditions) i zapewniamy spójność danych w grze.
+Reprezentują różne aspekty gry, które muszą działać równolegle. Wszystkie te wątki działają równolegle, co pozwala na rozgrywkę gry z wieloma interakcjami pomiędzy obiektami na ekranie.
 
 ### Mutex dla listy samochodów (CarThread) 
 Wątek generujący samochody (CarThread) korzysta z mutexu, aby synchronizować dostęp do listy samochodów. Mutex zapewnia, że tylko jeden wątek naraz może dodawać nowe samochody do listy, co eliminuje możliwość konfliktów przy dostępie do wspólnego zasobu.
@@ -71,13 +70,13 @@ Podobnie jak w przypadku samochodów, wątek generujący pieniądze (CashThread)
 
 ## Zdjęcia z gry:
 
-[//]: # ![Start Screen](Images/game/Start.png)
+![Ekran startowy gry](Images/game/Start.png){width=400px}
 *Ekran startowy gry*
 
-[//]: # ![Gameplay](Images/game/Gameplay.png)
+![Gameplay](Images/game/Gameplay.png){width=400px}
 *Gameplay*
 
-[//]: # ![Game Over Screen](Images/game/GameOver.png)
+![Ekran zakończenia gry](Images/game/GameOver.png){width=400px}
 *Ekran zakończenia gry*
 
 ## Autorzy:
