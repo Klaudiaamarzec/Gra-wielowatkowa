@@ -1,5 +1,5 @@
 """
-Fast and Furious - Gra wyścigowa
+Fast and Furious - Racing game
 """
 import sys
 import time
@@ -29,19 +29,26 @@ class Road:
                               self.width, self.height,{'up': pygame.K_w, 'down': pygame.K_s,
                               'left': pygame.K_a, 'right': pygame.K_d}, self.cars, self.cash)
 
-        # Thread for cash, cars and collisions
+        # Threads for cash, cars and collisions
         self.cash_thread = CashThread(self.screen, self.cash)
         self.car_thread = CarThread(self.screen, self.cars)
+        self.player_collision = PlayerCollision(self.player1, self.player2)
         self.collision_thread = Collision(self.cars)
         self.removecash_thread = RemoveCashThread(self.cash)
 
         self.cash_thread.start()
+        self.player_collision.start()
         self.car_thread.start()
         self.collision_thread.start()
         self.removecash_thread.start()
 
         self.running = True
         self.clock = pygame.time.Clock()
+
+        # The amount of money collected by each player
+        self.font = pygame.font.Font(None, 36)
+        self.player1_text = self.font.render(f"COINS: {self.player2.cash_collected}", True, (255, 255, 0))
+        self.player2_text = self.font.render(f"COINS: {self.player1.cash_collected}", True, (255, 255, 0))
 
     def handle_events(self):
         """
@@ -55,16 +62,13 @@ class Road:
         self.player1.move(keys1)
         self.player2.move(keys2)
 
-    def check_collisions(self):
-        # Calculate collision bounding boxes
-        player1_rect = self.player1.image.get_rect(topleft=(self.player1.x, self.player1.y))
-        player2_rect = self.player2.image.get_rect(topleft=(self.player2.x, self.player2.y))
-
-        # Check for collision
-        if player1_rect.colliderect(player2_rect):
-            # Handle collision by moving players away from each other
-            self.player1.x += 5
-            self.player2.x -= 5
+    def update_cash_texts(self):
+        player1_new_text = f"COINS: {self.player2.cash_collected}"
+        player2_new_text = f"COINS: {self.player1.cash_collected}"
+        if self.player1_text != player1_new_text:
+            self.player1_text = self.font.render(player1_new_text, True, (255, 255, 0))
+        if self.player2_text != player2_new_text:
+            self.player2_text = self.font.render(player2_new_text, True, (255, 255, 0))
 
     def draw_game_screen(self):
         draw_background(self.screen, self.width, self.height)
@@ -72,21 +76,19 @@ class Road:
         self.screen.blit(self.player1.image, (self.player1.x, self.player1.y))
         self.screen.blit(self.player2.image, (self.player2.x, self.player2.y))
 
-        # drawing cash on the screen
+        # Drawing cash on the screen
         for cash in self.cash:
             self.screen.blit(cash.dollar_image, (cash.x, cash.y))
 
-        # drawing car on the screen
+        # Drawing cars on the screen
         for car in self.cars:
             self.screen.blit(car.image, (car.x, car.y))
             car.move()
 
-        # Wyświetl ilość zebranych pieniędzy dla każdego gracza
-        # font = pygame.font.Font(None, 36)
-        # player1_text = font.render(f"COINS: {self.player2.cash_collected}", True, (255, 255, 0))
-        # player2_text = font.render(f"COINS: {self.player1.cash_collected}", True, (255, 255, 0))
-        # self.screen.blit(player1_text, (20, 20))
-        # self.screen.blit(player2_text, (self.width - player2_text.get_width() - 20, 20))
+        self.update_cash_texts()
+
+        self.screen.blit(self.player1_text, (20, 20))
+        self.screen.blit(self.player2_text, (self.width - self.player2_text.get_width() - 20, 20))
 
         pygame.display.flip()
         self.clock.tick(60)
@@ -97,7 +99,6 @@ class Road:
             keys1 = pygame.key.get_pressed()
             keys2 = pygame.key.get_pressed()
             self.update_players(keys1, keys2)
-            self.check_collisions()
             self.screen.fill((0, 0, 0))
 
             self.draw_game_screen()
@@ -117,21 +118,23 @@ class Road:
     def stop_threads(self):
 
         self.cash_thread.stop()
-        self.car_thread.stop()
-        self.collision_thread.stop()
+        self.player_collision.stop()
         self.removecash_thread.stop()
+        self.collision_thread.stop()
+        self.car_thread.stop()
 
         self.cash_thread.join()
-        self.car_thread.join()
-        self.collision_thread.join()
         self.removecash_thread.join()
+        self.player_collision.join()
+        self.collision_thread.join()
+        self.car_thread.join()
 
 
 class Player:
     def __init__(self, name, image_path, x, y, width, height, keys, cars, cash):
         self.name = name
         self.image = pygame.image.load(image_path)
-        self.image = pygame.transform.scale(self.image, (80, 160))  #Przykładowa skala dla samochodu
+        self.image = pygame.transform.scale(self.image, (80, 160))
         self.x = x
         self.y = y
         self.width = width
@@ -158,7 +161,6 @@ class Player:
         for car in self.cars:
             car_rect = car.image.get_rect(topleft=(car.x, car.y))
             if player_rect.colliderect(car_rect):
-                # Game over for this player
                 self.game_over = True
 
     def check_cash_collected(self):
@@ -169,7 +171,6 @@ class Player:
             if player_rect.colliderect(cash_rect):
                 cash.collected = True
                 self.cash_collected += 1
-                print("Player ", self.name, "has collected: ", self.cash_collected, " coins")
 
     def move(self, pressed_keys):
         if pressed_keys[self.keys['up']]:
@@ -191,7 +192,7 @@ class Cash:
         super().__init__()
         self.screen = screen
         self.dollar_image = pygame.image.load("Images/dollar.png")
-        self.dollar_image = pygame.transform.scale(self.dollar_image, (25, 25))  # Dostosuj rozmiar obrazka
+        self.dollar_image = pygame.transform.scale(self.dollar_image, (25, 25))
         self.x = x
         self.y = y
         self.collected = False
@@ -232,9 +233,8 @@ class CashThread(threading.Thread):
 
     def run(self):
         while self.running:
-            # Cash generate
             self.generate_cash()
-            time.sleep(3)  # Example delay for generated cash
+            time.sleep(3)
 
     def stop(self):
         self.running = False
@@ -261,7 +261,6 @@ class CarThread(threading.Thread):
         super().__init__()
         self.screen = screen
         self.cars = cars
-
         self.running = True
         self.lock = threading.Lock()  # Mutex
 
@@ -271,15 +270,15 @@ class CarThread(threading.Thread):
         car = Car(image_path, x, y, direction)
 
         if direction == "down":
-            # Odwrócenie obrazu dla samochodów poruszających się w dół
+            # Image inversion for cars moving downwards
             car_image = pygame.image.load(image_path)
             car_image = pygame.transform.flip(car_image, False, True)
             car.image = pygame.transform.scale(car_image, (80, 160))
 
-        # Sprawdź kolizje z istniejącymi samochodami
+        # Check collisions with existing cars
         with self.lock:
             for existing_car in self.cars:
-                # Jeśli nowo tworzony samochód koliduje z istniejącym, wybierz nowe współrzędne
+                # Select new coordinates if the new car colidates with an existing one
                 if self.check_collision(car, existing_car):
                     if direction == "down":
                         car.x = random.randint(50, 375)
@@ -288,14 +287,13 @@ class CarThread(threading.Thread):
                         car.x = random.randint(425, 750)
                         car.y = random.randint(600, 680)
 
-            # Dodaj nowy samochód do listy
             self.cars.append(car)
 
     def run(self):
         while self.running:
             self.generate_car(random.randint(50, 375), random.randint(-160, -80), "down")
             self.generate_car(random.randint(375, 750), random.randint(600, 700), "up")
-            time.sleep(random.uniform(5, 10))  # Losowy czas między generacją samochodów 5 10
+            time.sleep(random.uniform(5, 10))
 
     def stop(self):
         self.running = False
@@ -336,13 +334,11 @@ def check_collisions(car1, car2, cars):
     car1_rect = car1.image.get_rect(topleft=(car1.x, car1.y))
     car2_rect = car2.image.get_rect(topleft=(car2.x, car2.y))
 
-    # Check for collision
     if car1_rect.colliderect(car2_rect):
         # If cars are moving in opposite directions and car1 is faster than car2,
         # car1 passes car2
         if ((car1.direction == "down" and car2.direction == "up") or
                 (car1.direction == "up" and car2.direction == "down")):
-            # Check if car1 is to the left of car2
             if car1.x < car2.x:
                 # Car1 is to the left, so it passes car2 to the right
                 # Handle collision by moving cars to the right
@@ -364,21 +360,18 @@ def check_collisions(car1, car2, cars):
             faster_car.speed = slower_car.speed
             car_width = faster_car.image.get_width()
 
-            # Random direction
             direction = random.choice([True, False])
             if direction:
-                # Sprawdź czy można skręcić w prawo
+                # Check, if it can turn right
                 if can_move_right(faster_car, cars, car_width):
                     faster_car.x += 5
                 else:
-                    # Jeśli nie ma wystarczająco miejsca po lewej, zwolnij
+                    # Slow down if there isn't enough space on the left side
                     faster_car.speed = slower_car.speed
             else:
-                # Sprawdź czy można skręcić w lewo
                 if can_move_left(faster_car, cars, car_width):
                     faster_car.x -= 5
                 else:
-                    # Jeśli nie ma wystarczająco miejsca po lewej, zwolnij
                     faster_car.speed = slower_car.speed
 
 
@@ -394,7 +387,31 @@ class Collision(threading.Thread):
                 for car2 in self.cars:
                     if car1 != car2:
                         check_collisions(car1, car2, self.cars)
-            # time.sleep(0.1)  # Sprawdź kolizje co 0.1 sekundy
+            time.sleep(1)  # Check collisions once per 1 second
+
+    def stop(self):
+        self.running = False
+
+
+class PlayerCollision(threading.Thread):
+    def __init__(self, player1, player2):
+        super().__init__()
+        self.player1 = player1
+        self.player2 = player2
+        self.running = True
+
+    def check_collisions(self):
+        player1_rect = self.player1.image.get_rect(topleft=(self.player1.x, self.player1.y))
+        player2_rect = self.player2.image.get_rect(topleft=(self.player2.x, self.player2.y))
+
+        if player1_rect.colliderect(player2_rect):
+            # Handle collision by moving players away from each other
+            self.player1.x += 5
+            self.player2.x -= 5
+
+    def run(self):
+        while self.running:
+            self.check_collisions()
 
     def stop(self):
         self.running = False
@@ -404,7 +421,7 @@ class GameOverScreen:
     def __init__(self, width, height, player1_points, player2_points, winner=None):
         self.width = width
         self.height = height
-        self.file_path = "baza.txt"
+        self.file_path = "results.txt"
 
         pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
@@ -439,8 +456,8 @@ class GameOverScreen:
         game_over_text_rect = game_over_text.get_rect(center=(self.width // 2, 100))
         self.screen.blit(game_over_text, game_over_text_rect)
 
-        player1_points_text = self.font.render(f"Player 1 Points: {self.player1_points}", True, (0, 0, 255))
-        player2_points_text = self.font.render(f"Player 2 Points: {self.player2_points}", True, (0, 0, 255))
+        player1_points_text = self.font.render(f"Orange Player Points: {self.player1_points}", True, (0, 0, 255))
+        player2_points_text = self.font.render(f"Green Player Points: {self.player2_points}", True, (0, 0, 255))
 
         player_points_x = self.width // 2 - player1_points_text.get_width() // 2
         player1_points_y = 400
@@ -455,19 +472,18 @@ class GameOverScreen:
         self.screen.blit(restart_text, restart_text_rect)
 
         if self.winner:
-            winner_text = self.big_font.render(f"Gracz {self.winner} wygrał!", True, (0, 255, 0))
+            winner_text = self.big_font.render(f"The {self.winner} Player won!", True, (0, 255, 0))
             winner_text_rect = winner_text.get_rect(center=(self.width // 2, 200))
             self.screen.blit(winner_text, winner_text_rect)
 
         pygame.draw.rect(self.screen, (255, 0, 0), self.exit_button_rect)
-        exit_text = self.font.render("Zakończ grę", True, (255, 255, 255))
+        exit_text = self.font.render("Finish game", True, (255, 255, 255))
         exit_text_rect = exit_text.get_rect(center=self.exit_button_rect.center)
         self.screen.blit(exit_text, exit_text_rect)
 
         pygame.display.flip()
 
     def handle_events(self):
-        # Obsługa zdarzeń myszy
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -475,7 +491,7 @@ class GameOverScreen:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if self.restart_button_rect.collidepoint(event.pos):
                     return True
-                if self.exit_button_rect.collidepoint(event.pos):  # Obsługa przycisku "Zakończ grę"
+                if self.exit_button_rect.collidepoint(event.pos):
                     pygame.quit()
                     sys.exit()
         return False
@@ -489,7 +505,7 @@ def random_car_image():
 
 def draw_background(screen, width, height):
     # Background
-    screen.fill((128, 128, 128))  # Grey background
+    screen.fill((128, 128, 128))
 
     # Drawing stripes on the road
     lane_width = 10
@@ -502,8 +518,8 @@ def draw_background(screen, width, height):
 
 
 def draw_start_screen(screen):
-    screen.fill((250, 227, 239))  # background
-    start_button_rect = pygame.Rect(300, 250, 200, 100)  # Rectangle for the start button
+    screen.fill((250, 227, 239))
+    start_button_rect = pygame.Rect(300, 250, 200, 100)
     font = pygame.font.Font(None, 36)
     start_text = font.render("   Start", True, (255, 255, 255))
     start_button_color = (228, 70, 152) if start_button_rect.collidepoint(pygame.mouse.get_pos()) else (
@@ -515,11 +531,10 @@ def draw_start_screen(screen):
 
 def game_over(player1, player2, width, height):
     winner = None
-    # Gracz zielony - po lewej - Player 2
     if player1.game_over:
-        winner ="Zielony"
+        winner ="Green"
     if player2.game_over:
-        winner = "Pomarańczowy"
+        winner = "Orange"
 
     game_over_screen = GameOverScreen(width, height, player1.cash_collected, player2.cash_collected, winner)
 
@@ -558,10 +573,10 @@ def main():
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if pygame.mouse.get_pressed()[0]:  # Left mouse button pressed
+                if pygame.mouse.get_pressed()[0]:
                     mouse_pos = pygame.mouse.get_pos()
                     if pygame.Rect(300, 250, 200, 100).collidepoint(mouse_pos):
-                        start_screen_active = False  # Exit the start screen loop
+                        start_screen_active = False
 
         draw_start_screen(screen)
         clock.tick(30)

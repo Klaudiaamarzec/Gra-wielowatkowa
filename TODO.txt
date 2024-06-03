@@ -1,11 +1,8 @@
 Co trzeba zrobic:
 - semafor do kontrolowania ile samochodow moze byc na drodze jednoczesnie ( np na drodze moze byc maks 5 samochodow naraz
-- zbieranie kasy przez auta i trzymanie gdzies wartosci
 - muteks chyba co sie dzieje jak mamy kolizje i jednoczesnie zbieramy kase
 - zeby auta graczy widzialy inne auta
 
-- dodac ekran koncowy
 - ulepszyc ekran startowy o wybor samochodu gracza
-- do ekranu koncowego pokazac ile gracze zdobyli punktow i kto wygral
 - ulepszenie ekranu gry -> dodanie jakiejs drogi pobocznej, lepsze pokazanie zmainy kierunku drogi
 
