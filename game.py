@@ -9,13 +9,13 @@ import pygame
 
 class Road:
     """
-    Główny wątek gry, zarządza logiką gry, włączając w to wyświetlanie ekranu startowego,
-     obsługę zdarzeń, aktualizację graczy oraz zarządzanie innymi wątkami.
+    Main game thread, manages game logic including displaying the start screen,
+    event handling, player updates, and managing other threads.
     """
 
     def __init__(self, screen):
         self.screen = screen
-        self.width, self.height = 800, 600
+        self.width, self.height = 545, 800
         pygame.init()
         self.cars = []
         self.cash = []
@@ -36,6 +36,7 @@ class Road:
         self.collision_thread = Collision(self.cars)
         self.removecash_thread = RemoveCashThread(self.cash)
 
+        # Start threads
         self.cash_thread.start()
         self.player_collision.start()
         self.car_thread.start()
@@ -51,18 +52,17 @@ class Road:
         self.player2_text = self.font.render(f"COINS: {self.player1.cash_collected}", True, (255, 255, 0))
 
     def handle_events(self):
-        """
-        Metoda obsługuje zdarzenia, takie jak naciśnięcie klawiszy lub zamknięcie okna.
-        """
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
 
+
+    #Update the players positions based on keyboard
     def update_players(self, keys1, keys2):
         self.player1.move(keys1)
         self.player2.move(keys2)
 
-    def update_cash_texts(self):
+    def update_cash_texts(self): #the amount of collected cash
         player1_new_text = f"COINS: {self.player2.cash_collected}"
         player2_new_text = f"COINS: {self.player1.cash_collected}"
         if self.player1_text != player1_new_text:
@@ -115,6 +115,7 @@ class Road:
         self.stop_threads()
         pygame.quit()
 
+    #Stop all threads when game ends
     def stop_threads(self):
 
         self.cash_thread.stop()
@@ -155,6 +156,7 @@ class Player:
         elif self.y > self.height - self.image.get_height():
             self.y = self.height - self.image.get_height()
 
+    #Checks for collisions with other cars.
     def check_collisions(self):
         player_rect = self.image.get_rect(topleft=(self.x, self.y))
 
@@ -188,6 +190,9 @@ class Player:
 
 
 class Cash:
+    """
+    Represents cash that players can collect.
+    """
     def __init__(self, screen, x, y):
         super().__init__()
         self.screen = screen
@@ -204,6 +209,7 @@ class RemoveCashThread(threading.Thread):
         self.cash = cash
         self.running = True
 
+    #continuously check for collected cash and remove it from the game.
     def run(self):
         while self.running:
             for c in self.cash:
@@ -216,6 +222,9 @@ class RemoveCashThread(threading.Thread):
 
 
 class CashThread(threading.Thread):
+    """
+        Thread to generate cash at random positions on the screen.
+    """
     def __init__(self, screen, cash):
         super().__init__()
         self.cash = cash
@@ -250,6 +259,8 @@ class Car:
         self.speed = random.randint(1, 3)
 
     def move(self):
+       # Moves the car based on its direction and speed.
+
         if self.direction == "up":
             self.y -= self.speed
         else:
@@ -257,6 +268,9 @@ class Car:
 
 
 class CarThread(threading.Thread):
+    """
+        Thread to generate cars at random positions and manage car movements.
+    """
     def __init__(self, screen, cars):
         super().__init__()
         self.screen = screen
@@ -281,30 +295,27 @@ class CarThread(threading.Thread):
                 # Select new coordinates if the new car colidates with an existing one
                 if self.check_collision(car, existing_car):
                     if direction == "down":
-                        car.x = random.randint(50, 375)
+                        car.x = random.randint(50, 240)
                         car.y = random.randint(-160, -80)
                     else:
-                        car.x = random.randint(425, 750)
+                        car.x = random.randint(320, 750)
                         car.y = random.randint(600, 680)
 
             self.cars.append(car)
 
     def run(self):
         while self.running:
-            self.generate_car(random.randint(50, 375), random.randint(-160, -80), "down")
-            self.generate_car(random.randint(375, 750), random.randint(600, 700), "up")
+            self.generate_car(random.randint(50, 220), random.randint(-160, -80), "down")
+            self.generate_car(random.randint(320, 750), random.randint(600, 700), "up")
             time.sleep(random.uniform(5, 10))
 
     def stop(self):
         self.running = False
 
+
+    #        Check if two cars collide with each other.
     def check_collision(self, car1, car2):
-        # Sprawdź, czy dwie samochody kolidują ze sobą
-        # distance = ((car1.x - car2.x) ** 2 + (car1.y - car2.y) ** 2) ** 0.5
-        # if distance < 50:  # Jeśli odległość jest mniejsza niż 100 pikseli, kolidują
-        #     return True
-        # else:
-        #     return False
+
         car1_rect = pygame.Rect(car1.x, car1.y, car1.image.get_width(), car1.image.get_height())
         car2_rect = pygame.Rect(car2.x, car2.y, car2.image.get_width(), car2.image.get_height())
         return car1_rect.colliderect(car2_rect)
@@ -428,14 +439,14 @@ class GameOverScreen:
         pygame.display.set_caption("Game Over")
         self.font = pygame.font.Font(None, 36)
         self.big_font = pygame.font.Font(None, 72)
-        self.restart_button_rect = pygame.Rect(300, 320, 200, 50)
+        self.restart_button_rect = pygame.Rect(170, 320, 200, 50)
         self.player1_points = player1_points
         self.player2_points = player2_points
         self.read_points_from_file()
-        self.exit_button_rect = pygame.Rect(300, 500, 200, 50)
+        self.exit_button_rect = pygame.Rect(170, 600, 200, 50)
         self.winner = winner
 
-    def read_points_from_file(self):
+    def read_points_from_file(self): #Read points from the results file.
         try:
             with open(self.file_path, "r", encoding="utf-8") as file:
                 self.player1_points += int(file.readline().strip())
@@ -443,6 +454,7 @@ class GameOverScreen:
         except FileNotFoundError:
             pass
 
+    #Writes points to the results file and exit the game.
     def write_points_to_file(self):
         with open(self.file_path, "w", encoding="utf-8") as file:
             file.write(str(self.player1_points) + "\n")
@@ -472,7 +484,7 @@ class GameOverScreen:
         self.screen.blit(restart_text, restart_text_rect)
 
         if self.winner:
-            winner_text = self.big_font.render(f"The {self.winner} Player won!", True, (0, 255, 0))
+            winner_text = self.big_font.render(f"{self.winner} Player won!", True, (0, 255, 0))
             winner_text_rect = winner_text.get_rect(center=(self.width // 2, 200))
             self.screen.blit(winner_text, winner_text_rect)
 
@@ -497,7 +509,7 @@ class GameOverScreen:
         return False
 
 
-def random_car_image():
+def random_car_image(): #random car from images.
     car_images = ['Images/pomaranczowe.png', 'Images/policja.png', 'Images/karetka.png', 'Images/taxi.png',
                   'Images/van.png', 'Images/zielony.png']
     return random.choice(car_images)
@@ -508,24 +520,54 @@ def draw_background(screen, width, height):
     screen.fill((128, 128, 128))
 
     # Drawing stripes on the road
-    lane_width = 10
+    lane_width = 5
     num_lanes = 10
     lane_color = (255, 255, 255)
+    dash_length = 20  # Length of each dash
+    gap_length = 10  # Length of gap between dashes
+
+    # Draw lanes
     for i in range(num_lanes):
-        lane_x = width // 2 - lane_width // 2
-        lane_x += (i - num_lanes // 2) * (width // num_lanes)
-        pygame.draw.rect(screen, lane_color, pygame.Rect(lane_x, 0, lane_width, height))
+        if i == num_lanes // 2:
+            # Draw solid line in the middle
+            middle_lane_x = screen.get_width() // 2 - lane_width // 2
+            middle_lane_y = 0
+            middle_lane_height = screen.get_height()
+            pygame.draw.rect(screen, lane_color,
+                             pygame.Rect(middle_lane_x, middle_lane_y, lane_width, middle_lane_height))
+            # Draw dashed lines on the sides
+            lane_y = screen.get_height() // 2 - lane_width // 2
+            lane_y += (i - num_lanes // 2) * (screen.get_height() // num_lanes)
+            num_dashes = screen.get_width() // (dash_length + gap_length)
+            for j in range(1,num_dashes):
+                dash_x = j * (dash_length + gap_length)
+                if j % 3 == 0:  # Draw dashes only on even iterations
+                    pygame.draw.rect(screen, lane_color, pygame.Rect(dash_x, lane_y, lane_width, dash_length))
+
+        else:
+            # Draw dashed lines on the sides
+            lane_y = screen.get_height() // 2 - lane_width // 2
+            lane_y += (i - num_lanes // 2) * (screen.get_height() // num_lanes)
+            num_dashes = screen.get_width() // (dash_length + gap_length)
+            for j in range(1,num_dashes):
+                dash_x = j * (dash_length + gap_length)
+                if j % 3 == 0:  # Draw dashes only on even iterations
+                    pygame.draw.rect(screen, lane_color, pygame.Rect(dash_x, lane_y, lane_width, dash_length))
 
 
 def draw_start_screen(screen):
     screen.fill((250, 227, 239))
-    start_button_rect = pygame.Rect(300, 250, 200, 100)
+    button_width, button_height = 200, 100
+    button_x = (screen.get_width() - button_width) // 2
+    button_y = (screen.get_height() - button_height) // 2
+    start_button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
     font = pygame.font.Font(None, 36)
-    start_text = font.render("   Start", True, (255, 255, 255))
-    start_button_color = (228, 70, 152) if start_button_rect.collidepoint(pygame.mouse.get_pos()) else (
-        255, 105, 180)
+    start_text = font.render("START", True, (255, 255, 255))
+    start_button_color = (228, 70, 152) if start_button_rect.collidepoint(pygame.mouse.get_pos()) else (255, 105, 180)
     pygame.draw.rect(screen, start_button_color, start_button_rect, border_radius=10)
-    screen.blit(start_text, (350, 290))
+    text_x = button_x + (button_width - start_text.get_width()) // 2
+    text_y = button_y + (button_height - start_text.get_height()) // 2
+    screen.blit(start_text, (text_x, text_y))
     pygame.display.flip()
 
 
@@ -560,7 +602,7 @@ def restart_game(width, height):
 def main():
     pygame.init()
 
-    width, height = 800, 600
+    width, height = 545, 800
     screen = pygame.display.set_mode((width, height))
     pygame.display.set_caption("Start Screen")
 

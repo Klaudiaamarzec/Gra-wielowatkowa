@@ -71,13 +71,13 @@ Podobnie jak w przypadku samochodów, wątek generujący pieniądze (CashThread)
 
 ## Zdjęcia z gry:
 
-[//]: # (![Start Screen]&#40;screenshots/start_screen.png&#41;)
+[//]: # ![Start Screen](Images/game/Start.png)
 *Ekran startowy gry*
 
-[//]: # (![Gameplay]&#40;screenshots/gameplay.png&#41;)
+[//]: # ![Gameplay](Images/game/Gameplay.png)
 *Gameplay*
 
-[//]: # (![Game Over Screen]&#40;screenshots/game_over.png&#41;)
+[//]: # ![Game Over Screen](Images/game/GameOver.png)
 *Ekran zakończenia gry*
 
 ## Autorzy:
