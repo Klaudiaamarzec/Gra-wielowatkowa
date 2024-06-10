@@ -19,6 +19,7 @@ class Road:
         pygame.init()
         self.cars = []
         self.cash = []
+        self.flowers = []
         pygame.display.set_caption("Fast and Furious")
 
         # Players
@@ -32,6 +33,7 @@ class Road:
         # Threads for cash, cars and collisions
         self.cash_thread = CashThread(self.screen, self.cash)
         self.car_thread = CarThread(self.screen, self.cars)
+        self.flower_thread = FlowerThread(self.screen, self.flowers)
         self.player_collision = PlayerCollision(self.player1, self.player2)
         self.collision_thread = Collision(self.cars)
         self.removecash_thread = RemoveCashThread(self.cash)
@@ -40,6 +42,8 @@ class Road:
         self.cash_thread.start()
         self.player_collision.start()
         self.car_thread.start()
+        self.flower_thread.start()
+
         self.collision_thread.start()
         self.removecash_thread.start()
 
@@ -85,6 +89,11 @@ class Road:
             self.screen.blit(car.image, (car.x, car.y))
             car.move()
 
+        # Drawing flowers on the screen
+        for flower in self.flowers:
+            self.screen.blit(flower.image, (flower.x, flower.y))
+            flower.move()
+
         self.update_cash_texts()
 
         self.screen.blit(self.player1_text, (20, 20))
@@ -123,12 +132,14 @@ class Road:
         self.removecash_thread.stop()
         self.collision_thread.stop()
         self.car_thread.stop()
+        self.flower_thread.stop()
 
         self.cash_thread.join()
         self.removecash_thread.join()
         self.player_collision.join()
         self.collision_thread.join()
         self.car_thread.join()
+        self.flower_thread.join()
 
 
 class Player:
@@ -248,6 +259,51 @@ class CashThread(threading.Thread):
     def stop(self):
         self.running = False
 
+class Flower:
+    def __init__(self, image_path, x, y,direction):
+        self.image = pygame.image.load(image_path)
+        self.image = pygame.transform.scale(self.image, (4, 4))
+        self.x = x
+        self.y = y
+        self.direction = direction
+        self.speed = 1
+
+    def move(self):
+       # Moves the car based on its direction and speed.
+            self.y -= self.speed
+
+class FlowerThread(threading.Thread):
+    def __init__(self, screen,flowers):
+        super(FlowerThread, self).__init__()
+        self.screen = screen
+        self.flowers = flowers
+        self.running = True
+
+    def generate_flower(self):
+        # kwiatki na lewej
+        x = random.randint(0, 4)
+        y = random.randint(800, 850)
+        direction = "down"
+        flower = Flower('Images/policja.png', x, y, direction)
+        self.flowers.append(flower)
+
+        # kwiatki na prawej
+        x = random.randint(535, 545)
+        y = random.randint(800, 850)
+        direction = "up"
+
+        image_path = random_flower()
+        flower = Flower(image_path, x, y, direction)
+        self.flowers.append(flower)
+
+    def run(self):
+        while self.running:
+            self.generate_flower()
+            time.sleep(random.uniform(1, 5))  # Losowy czas między generacją kwiatkow
+
+    def stop(self):
+        self.running = False
+
 
 class Car:
     def __init__(self, image_path, x, y, direction):
@@ -295,18 +351,18 @@ class CarThread(threading.Thread):
                 # Select new coordinates if the new car colidates with an existing one
                 if self.check_collision(car, existing_car):
                     if direction == "down":
-                        car.x = random.randint(50, 240)
-                        car.y = random.randint(-160, -80)
+                        car.x = random.randint(10, 250)
+                        car.y = random.randint(-160, -100)
                     else:
-                        car.x = random.randint(320, 750)
-                        car.y = random.randint(600, 680)
+                        car.x = random.randint(290, 790)
+                        car.y = random.randint(900, 980)
 
             self.cars.append(car)
 
     def run(self):
         while self.running:
-            self.generate_car(random.randint(50, 220), random.randint(-160, -80), "down")
-            self.generate_car(random.randint(320, 750), random.randint(600, 700), "up")
+            self.generate_car(random.randint(50, 220), random.randint(-160, -100), "down")
+            self.generate_car(random.randint(320, 750), random.randint(850, 900), "up")
             time.sleep(random.uniform(5, 10))
 
     def stop(self):
@@ -514,10 +570,19 @@ def random_car_image(): #random car from images.
                   'Images/van.png', 'Images/zielony.png']
     return random.choice(car_images)
 
+def random_flower():
+    flower_image=['Images/grass/f_pom.png','Images/grass/f_fiolet.png']
+    return random.choice(flower_image)
 
 def draw_background(screen, width, height):
     # Background
     screen.fill((128, 128, 128))
+
+    # Drawing grass next to the road
+    grass_width = 7
+    grass_color = (0, 128, 0)
+    pygame.draw.rect(screen, grass_color, pygame.Rect(0, 0, grass_width, height))
+    pygame.draw.rect(screen, grass_color, pygame.Rect(width - grass_width, 0, grass_width, height))
 
     # Drawing stripes on the road
     lane_width = 5
@@ -617,7 +682,7 @@ def main():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if pygame.mouse.get_pressed()[0]:
                     mouse_pos = pygame.mouse.get_pos()
-                    if pygame.Rect(300, 250, 200, 100).collidepoint(mouse_pos):
+                    if pygame.Rect(175, 350, 200, 100).collidepoint(mouse_pos):
                         start_screen_active = False
 
         draw_start_screen(screen)
