@@ -165,7 +165,7 @@ class Player:
 
         # Load crashing sound
         self.crash_sound = pygame.mixer.Sound('audio/Crashing.wav')
-        self.collision_margin = 10  # Margin to reduce the collision distance
+        self.collision_margin = 20  # Margin to reduce the collision distance
 
 
     def check_boundaries(self):
@@ -367,7 +367,7 @@ class CarThread(threading.Thread):
                 if self.check_collision(car, existing_car):
                     if direction == "down":
                         car.x = random.randint(5, 170)
-                        car.y = random.randint(-160, -100)
+                        car.y = random.randint(-200, -160)
                     else:
                         car.x = random.randint(245, 460)
                         car.y = random.randint(900, 980)
@@ -376,8 +376,8 @@ class CarThread(threading.Thread):
 
     def run(self):
         while self.running:
-            self.generate_car(random.randint(50, 220), random.randint(-160, -100), "down")
-            self.generate_car(random.randint(320, 500), random.randint(850, 900), "up")
+            self.generate_car(random.randint(50, 200), random.randint(-200, -160), "down")
+            self.generate_car(random.randint(320, 460), random.randint(850, 900), "up")
             time.sleep(random.uniform(5, 10))
 
     def stop(self):
