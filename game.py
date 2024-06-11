@@ -378,7 +378,7 @@ class CarThread(threading.Thread):
         while self.running:
             self.generate_car(random.randint(50, 200), random.randint(-200, -160), "down")
             self.generate_car(random.randint(320, 460), random.randint(850, 900), "up")
-            time.sleep(random.uniform(5, 10))
+            time.sleep(random.uniform(5, 20))
 
     def stop(self):
         self.running = False
