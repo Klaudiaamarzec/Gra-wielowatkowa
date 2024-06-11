@@ -6,6 +6,7 @@ import time
 import random
 import threading
 import pygame
+import pygame.mixer
 
 class Road:
     """
@@ -17,10 +18,14 @@ class Road:
         self.screen = screen
         self.width, self.height = 545, 800
         pygame.init()
+        self.flowers = []
         self.cars = []
         self.cash = []
-        self.flowers = []
         pygame.display.set_caption("Fast and Furious")
+
+        # Load crashing sound
+        self.car_sound = pygame.mixer.Sound('audio/DrivingCar.wav')
+        self.car_sound.play()
 
         # Players
         self.player1 = Player("Player 1", 'Images/pomaranczowe.png', 600, 400,
@@ -116,6 +121,7 @@ class Road:
             self.clock.tick(60)
 
             if self.player1.game_over or self.player2.game_over:
+                self.car_sound.stop()
                 self.running = False
                 self.stop_threads()
                 pygame.quit()
@@ -157,6 +163,11 @@ class Player:
         self.cash_collected = 0
         self.game_over = False
 
+        # Load crashing sound
+        self.crash_sound = pygame.mixer.Sound('audio/Crashing.wav')
+        self.collision_margin = 10  # Margin to reduce the collision distance
+
+
     def check_boundaries(self):
         if self.x < 0:
             self.x = 0
@@ -172,9 +183,10 @@ class Player:
         player_rect = self.image.get_rect(topleft=(self.x, self.y))
 
         for car in self.cars:
-            car_rect = car.image.get_rect(topleft=(car.x, car.y))
+            car_rect = car.image.get_rect(topleft=(car.x, car.y)).inflate(-self.collision_margin, -self.collision_margin)
             if player_rect.colliderect(car_rect):
                 self.game_over = True
+                self.crash_sound.play()
 
     def check_cash_collected(self):
         player_rect = self.image.get_rect(topleft=(self.x, self.y))
@@ -262,17 +274,20 @@ class CashThread(threading.Thread):
 class Flower:
     def __init__(self, image_path, x, y,direction):
         self.image = pygame.image.load(image_path)
-        self.image = pygame.transform.scale(self.image, (4, 4))
+        self.image = pygame.transform.scale(self.image, (5, 5))
         self.x = x
         self.y = y
         self.direction = direction
-        self.speed = 1
+        self.speed = 0.5
 
     def move(self):
        # Moves the car based on its direction and speed.
             self.y -= self.speed
 
 class FlowerThread(threading.Thread):
+    """
+            A thread to create random flowers on grass
+        """
     def __init__(self, screen,flowers):
         super(FlowerThread, self).__init__()
         self.screen = screen
@@ -280,14 +295,14 @@ class FlowerThread(threading.Thread):
         self.running = True
 
     def generate_flower(self):
-        # kwiatki na lewej
+        # flowers on the left
         x = random.randint(0, 4)
         y = random.randint(800, 850)
         direction = "down"
         flower = Flower('Images/policja.png', x, y, direction)
         self.flowers.append(flower)
 
-        # kwiatki na prawej
+        # flowers on the right
         x = random.randint(535, 545)
         y = random.randint(800, 850)
         direction = "up"
@@ -299,7 +314,7 @@ class FlowerThread(threading.Thread):
     def run(self):
         while self.running:
             self.generate_flower()
-            time.sleep(random.uniform(1, 5))  # Losowy czas między generacją kwiatkow
+            time.sleep(random.uniform(1, 10))  # Random time between flower generation
 
     def stop(self):
         self.running = False
@@ -351,10 +366,10 @@ class CarThread(threading.Thread):
                 # Select new coordinates if the new car colidates with an existing one
                 if self.check_collision(car, existing_car):
                     if direction == "down":
-                        car.x = random.randint(10, 250)
+                        car.x = random.randint(5, 170)
                         car.y = random.randint(-160, -100)
                     else:
-                        car.x = random.randint(290, 790)
+                        car.x = random.randint(245, 460)
                         car.y = random.randint(900, 980)
 
             self.cars.append(car)
@@ -362,7 +377,7 @@ class CarThread(threading.Thread):
     def run(self):
         while self.running:
             self.generate_car(random.randint(50, 220), random.randint(-160, -100), "down")
-            self.generate_car(random.randint(320, 750), random.randint(850, 900), "up")
+            self.generate_car(random.randint(320, 500), random.randint(850, 900), "up")
             time.sleep(random.uniform(5, 10))
 
     def stop(self):
@@ -454,7 +469,7 @@ class Collision(threading.Thread):
                 for car2 in self.cars:
                     if car1 != car2:
                         check_collisions(car1, car2, self.cars)
-            time.sleep(1)  # Check collisions once per 1 second
+            time.sleep(0.1)  # Check collisions once per 1 second
 
     def stop(self):
         self.running = False
@@ -479,6 +494,8 @@ class PlayerCollision(threading.Thread):
     def run(self):
         while self.running:
             self.check_collisions()
+            time.sleep(0.1)  # Reduced sleep time
+
 
     def stop(self):
         self.running = False
@@ -580,7 +597,7 @@ def draw_background(screen, width, height):
 
     # Drawing grass next to the road
     grass_width = 7
-    grass_color = (0, 128, 0)
+    grass_color = (50, 128, 0)
     pygame.draw.rect(screen, grass_color, pygame.Rect(0, 0, grass_width, height))
     pygame.draw.rect(screen, grass_color, pygame.Rect(width - grass_width, 0, grass_width, height))
 
@@ -665,7 +682,9 @@ def restart_game(width, height):
 
 
 def main():
+
     pygame.init()
+
 
     width, height = 545, 800
     screen = pygame.display.set_mode((width, height))
