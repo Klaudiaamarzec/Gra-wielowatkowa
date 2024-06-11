@@ -469,7 +469,7 @@ class Collision(threading.Thread):
                 for car2 in self.cars:
                     if car1 != car2:
                         check_collisions(car1, car2, self.cars)
-            time.sleep(0.1)  # Check collisions once per 1 second
+            time.sleep(1)  # Check collisions once per 1 second
 
     def stop(self):
         self.running = False
@@ -494,7 +494,7 @@ class PlayerCollision(threading.Thread):
     def run(self):
         while self.running:
             self.check_collisions()
-            time.sleep(0.1)  # Reduced sleep time
+            # time.sleep(0.1)  # Reduced sleep time
 
 
     def stop(self):
